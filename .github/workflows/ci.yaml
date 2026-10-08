@@ -3,6 +3,10 @@ on:
   pull_request:
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   workflows:
     uses: kellen-miller/ci/.github/workflows/gh-actions-lint.yaml@77d60a821d037aaed948a4770590edf79faf0965
