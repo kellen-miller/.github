@@ -35,8 +35,10 @@ Checks are bound to the GitHub Actions App (`15368`). Keep always-triggered chec
 here; path-filtered workflows can leave PRs blocked waiting for an absent check.
 There is no universal "all workflows must pass" rule for personal repositories.
 
-The script discovers owned public and accessible private repositories, including
-forks. It also checks every configured repository, exposing App-installation gaps.
+The script discovers owned public and accessible private repositories. Forks and
+archived repositories are skipped before any ruleset reads or writes, even when
+explicitly selected with `--repo`. It also checks every configured repository,
+exposing App-installation gaps.
 A newly discovered repo or an empty check list is an error: no rulesets are written
 for that repo until its CI requirements are configured. Archived repos are reported
 and skipped. Private repositories currently reject rulesets on this account's

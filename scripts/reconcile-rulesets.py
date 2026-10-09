@@ -154,6 +154,10 @@ def reconcile(baseline, config, apply=False, selected=None):
                 report.append(f"SKIP {name}: archived (read-only)")
                 continue
 
+            if repository["fork"]:
+                report.append(f"SKIP {name}: fork")
+                continue
+
             entries = pages(f"{prefix}/rulesets?includes_parents=false")
             settings = config["repositories"].get(name)
             if not settings or not settings["checks"]:

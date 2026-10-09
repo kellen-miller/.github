@@ -14,7 +14,7 @@ class ReconcileTests(unittest.TestCase):
     def setUp(self):
         self.baseline, _ = MODULE.load_configuration(ROOT)
         self.config = {"owner": "kellen-miller", "repositories": {"demo": {"checks": ["test"]}}}
-        self.repo = {"name": "demo", "owner": {"login": "kellen-miller"}, "archived": False}
+        self.repo = {"name": "demo", "owner": {"login": "kellen-miller"}, "archived": False, "fork": False}
         self.saved = {}
         self.calls = []
         self.unmanaged = {"id": 99, "name": "existing protection"}
@@ -120,6 +120,14 @@ class ReconcileTests(unittest.TestCase):
         report, failures = self.run_reconcile(apply=True)
         self.assertEqual(failures, 0)
         self.assertIn("SKIP demo: archived", report)
+        self.assertEqual(self.saved, {})
+
+    def test_forks_are_skipped_before_ruleset_reads(self):
+        self.repo["fork"] = True
+        report, failures = self.run_reconcile(apply=True)
+        self.assertEqual(failures, 0)
+        self.assertIn("SKIP demo: fork", report)
+        self.assertFalse(any("/rulesets" in path for _, path, _ in self.calls))
         self.assertEqual(self.saved, {})
 
     def test_duplicate_managed_names_fail_before_writes(self):
