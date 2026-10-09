@@ -1,0 +1,241 @@
+{
+  "owner": "kellen-miller",
+  "repositories": {
+    ".github": {
+      "checks": [
+        "renovate / Renovate Config Validator",
+        "workflows / lint",
+        "rulesets"
+      ]
+    },
+    "alloy": {
+      "checks": [
+        "syntax-highlighter"
+      ]
+    },
+    "aoc": {
+      "checks": [
+        "go / Go Test",
+        "renovate / Renovate Config Validator",
+        "workflows / lint"
+      ]
+    },
+    "autolab": {
+      "checks": []
+    },
+    "big-iron": {
+      "checks": []
+    },
+    "celerity": {
+      "checks": [
+        "Prerelease generated contracts",
+        "linux",
+        "portable (macos-15)",
+        "portable (ubuntu-24.04)",
+        "quality",
+        "renovate / Renovate Config Validator",
+        "workflows / lint"
+      ]
+    },
+    "chief": {
+      "checks": [
+        "Build",
+        "Format",
+        "Lint",
+        "Test",
+        "renovate / Renovate Config Validator",
+        "workflows / lint"
+      ]
+    },
+    "ci": {
+      "checks": [
+        "check"
+      ]
+    },
+    "deburr": {
+      "checks": [
+        "CPD/jscpd major 5 integration",
+        "GitHub Action duplication smoke test",
+        "GitHub Action smoke test (macos-latest)",
+        "GitHub Action smoke test (ubuntu-latest)",
+        "GitHub Action smoke test (windows-latest)",
+        "Go (macos-latest) / Go Test",
+        "Go (ubuntu-latest) / Go Test",
+        "Go (windows-latest) / Go Test",
+        "VS Code TypeScript integration",
+        "renovate / Renovate Config Validator",
+        "workflows / lint"
+      ]
+    },
+    "dotfiles": {
+      "checks": [
+        "renovate / Renovate Config Validator",
+        "shell",
+        "tests",
+        "workflows / lint",
+        "yaml"
+      ]
+    },
+    "FollowMeBot": {
+      "checks": []
+    },
+    "GapTrader": {
+      "checks": []
+    },
+    "gctx": {
+      "checks": [
+        "Build (macos-latest)",
+        "Build (ubuntu-latest)",
+        "Conventional pull request title",
+        "GitHub Actions lint / lint",
+        "Go lint",
+        "Go vulnerability check",
+        "Release configuration",
+        "Test (macos-latest) / Go Test",
+        "Test (ubuntu-latest) / Go Test",
+        "renovate / Renovate Config Validator"
+      ]
+    },
+    "glove80-zmk-config": {
+      "checks": [
+        "build"
+      ]
+    },
+    "GrokkingTheInterview": {
+      "checks": [
+        "build"
+      ]
+    },
+    "homeserver": {
+      "checks": [
+        "erlang",
+        "extraction",
+        "garm",
+        "kubernetes",
+        "lint",
+        "node-red",
+        "powershell",
+        "python",
+        "renovate / Renovate Config Validator",
+        "runners",
+        "tempo",
+        "terraform",
+        "workflows / lint"
+      ]
+    },
+    "KartTimer": {
+      "checks": []
+    },
+    "kellen-miller.github.io": {
+      "checks": [
+        "build-and-test / Node Test",
+        "lint / lint",
+        "workflow-lint / lint"
+      ]
+    },
+    "not-leader-for-partition-example": {
+      "checks": [
+        "build"
+      ]
+    },
+    "opus": {
+      "checks": [
+        "Build node 20 on macos-14",
+        "Build node 20 on macos-15",
+        "Build node 20 on macos-26",
+        "Build node 20 on ubuntu-22.04",
+        "Build node 20 on ubuntu-22.04-arm",
+        "Build node 20 on ubuntu-24.04",
+        "Build node 20 on ubuntu-24.04-arm",
+        "Build node 20 on ubuntu-24.04-arm (musl)",
+        "Build node 20 on ubuntu-latest (musl)",
+        "Build node 20 on windows-2022",
+        "Build node 20 on windows-2025",
+        "Build node 22 on macos-14",
+        "Build node 22 on macos-15",
+        "Build node 22 on macos-26",
+        "Build node 22 on ubuntu-22.04",
+        "Build node 22 on ubuntu-22.04-arm",
+        "Build node 22 on ubuntu-24.04",
+        "Build node 22 on ubuntu-24.04-arm",
+        "Build node 22 on ubuntu-24.04-arm (musl)",
+        "Build node 22 on ubuntu-latest (musl)",
+        "Build node 22 on windows-2022",
+        "Build node 22 on windows-2025",
+        "Build node 24 on macos-14",
+        "Build node 24 on macos-15",
+        "Build node 24 on macos-26",
+        "Build node 24 on ubuntu-22.04",
+        "Build node 24 on ubuntu-22.04-arm",
+        "Build node 24 on ubuntu-24.04",
+        "Build node 24 on ubuntu-24.04-arm",
+        "Build node 24 on ubuntu-24.04-arm (musl)",
+        "Build node 24 on ubuntu-latest (musl)",
+        "Build node 24 on windows-2022",
+        "Build node 24 on windows-2025",
+        "Build node 25 on macos-14",
+        "Build node 25 on macos-15",
+        "Build node 25 on macos-26",
+        "Build node 25 on ubuntu-22.04",
+        "Build node 25 on ubuntu-22.04-arm",
+        "Build node 25 on ubuntu-24.04",
+        "Build node 25 on ubuntu-24.04-arm",
+        "Build node 25 on ubuntu-24.04-arm (musl)",
+        "Build node 25 on ubuntu-latest (musl)",
+        "Build node 25 on windows-2022",
+        "Build node 25 on windows-2025"
+      ]
+    },
+    "rx7": {
+      "checks": [
+        "hardware",
+        "renovate / Renovate Config Validator",
+        "workflows / lint"
+      ]
+    },
+    "skills": {
+      "checks": [
+        "renovate / Renovate Config Validator",
+        "test",
+        "workflows / lint"
+      ]
+    },
+    "sqlc-gen-python": {
+      "checks": [
+        "test"
+      ]
+    },
+    "sqlc-gen-typescript": {
+      "checks": [
+        "build",
+        "bun-mysql (examples/bun-mysql2, mysql)",
+        "bun-postgresql (examples/bun-pg, postgresql)",
+        "bun-postgresql (examples/bun-postgres, postgresql)",
+        "node-mysql (examples/node-mysql2, mysql)",
+        "node-postgresql (examples/node-pg, postgresql)",
+        "node-postgresql (examples/node-postgres, postgresql)"
+      ]
+    },
+    "sup": {
+      "checks": [
+        "Format and lint / Python Format",
+        "Format and lint / Python Lint",
+        "YAML lint",
+        "renovate / Renovate Config Validator",
+        "workflows / lint"
+      ]
+    },
+    "venae-machinae": {
+      "checks": [
+        "browsers (chromium)",
+        "browsers (firefox)",
+        "browsers (webkit)",
+        "checks",
+        "renovate / Renovate Config Validator",
+        "smoke",
+        "verify",
+        "workflows / lint"
+      ]
+    }
+  }
+}
