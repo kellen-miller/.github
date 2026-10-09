@@ -30,7 +30,7 @@ The script sends it explicitly and verifies the saved configuration after writes
 
 `rulesets/repositories.json` lists required GitHub Actions check names per repo.
 Initial names were observed on recent PRs targeting main; review them as workflows
-change. Celerity's push-only generated-contract publication check is excluded.
+change. Celerity's generated-contract validation runs on PRs and is included.
 Checks are bound to the GitHub Actions App (`15368`). Keep always-triggered checks
 here; path-filtered workflows can leave PRs blocked waiting for an absent check.
 There is no universal "all workflows must pass" rule for personal repositories.

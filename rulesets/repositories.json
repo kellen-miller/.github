@@ -28,6 +28,7 @@
     },
     "celerity": {
       "checks": [
+        "Prerelease generated contracts",
         "linux",
         "portable (macos-15)",
         "portable (ubuntu-24.04)",
