@@ -1,5 +1,7 @@
 import copy
 import importlib.util
+import json
+import subprocess
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -90,13 +92,13 @@ class ReconcileTests(unittest.TestCase):
         })
         self.assertTrue(reviews["rules"][0]["parameters"]["require_extra_approval_for_unattributed_changes"])
 
-    def test_missing_checks_and_new_repos_fail_without_writes(self):
+    def test_missing_checks_and_new_repos_warn_without_writes(self):
         for repositories in ({}, {"demo": {"checks": []}}):
             self.config["repositories"] = repositories
             self.calls.clear()
             report, failures = self.run_reconcile(apply=True)
-            self.assertEqual(failures, 1)
-            self.assertIn("CI checks not configured", report)
+            self.assertEqual(failures, 0)
+            self.assertIn("WARNING demo: CI checks not configured", report)
             self.assertTrue(all(method == "GET" for method, _, _ in self.calls))
 
     def test_plan_restrictions_are_reported(self):
@@ -104,15 +106,47 @@ class ReconcileTests(unittest.TestCase):
 
         def restricted(path, method="GET", payload=None):
             if "rulesets?" in path:
-                raise MODULE.GitHubError("Upgrade to GitHub Pro (HTTP 403)")
+                raise MODULE.UnsupportedRepository("Upgrade to GitHub Pro to enable this feature.")
 
             return original(path, method, payload)
 
         with patch.object(MODULE, "github", side_effect=restricted):
             report, failures = MODULE.reconcile(self.baseline, self.config, apply=True)
 
+        self.assertEqual(failures, 0)
+        self.assertIn("WARNING demo: Upgrade to GitHub Pro", report)
+        self.assertEqual(self.saved, {})
+
+    def test_api_only_classifies_plan_restrictions_on_initial_reads(self):
+        plan = "Upgrade to GitHub Pro or make this repository public to enable this feature."
+        for method, path, message, status, expected in [
+            ("GET", "repos/kellen-miller/demo/rulesets?page=1", plan, 403, MODULE.UnsupportedRepository),
+            ("GET", "repos/kellen-miller/demo/rulesets?page=1", "Resource not accessible by integration", 403, MODULE.GitHubError),
+            ("GET", "repos/kellen-miller/demo/rulesets?page=1", plan, 500, MODULE.GitHubError),
+            ("POST", "repos/kellen-miller/demo/rulesets", plan, 403, MODULE.GitHubError),
+        ]:
+            with self.subTest(method=method, message=message, status=status):
+                response = subprocess.CompletedProcess([], 1, json.dumps({"message": message}), f"gh: {message} (HTTP {status})")
+                with patch.object(MODULE.subprocess, "run", return_value=response):
+                    with self.assertRaises(expected) as raised:
+                        MODULE.github(path, method)
+
+                self.assertIs(type(raised.exception), expected)
+
+    def test_permission_errors_still_fail(self):
+        original = self.api
+
+        def denied(path, method="GET", payload=None):
+            if "rulesets?" in path:
+                raise MODULE.GitHubError("Resource not accessible by integration (HTTP 403)")
+
+            return original(path, method, payload)
+
+        with patch.object(MODULE, "github", side_effect=denied):
+            report, failures = MODULE.reconcile(self.baseline, self.config, apply=True)
+
         self.assertEqual(failures, 1)
-        self.assertIn("Upgrade to GitHub Pro", report)
+        self.assertIn("ERROR demo:", report)
         self.assertEqual(self.saved, {})
 
     def test_archived_repos_are_skipped(self):
@@ -169,8 +203,8 @@ class ReconcileTests(unittest.TestCase):
         with patch.object(MODULE, "github", side_effect=installation):
             report, failures = MODULE.reconcile(self.baseline, self.config)
 
-        self.assertEqual(failures, 1)
-        self.assertIn("ERROR private-demo: CI checks not configured", report)
+        self.assertEqual(failures, 0)
+        self.assertIn("WARNING private-demo: CI checks not configured", report)
         self.assertFalse(any(path.startswith("user/repos?") for _, path, _ in self.calls))
 
     def test_pagination_keeps_all_repositories(self):

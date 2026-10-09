@@ -18,6 +18,10 @@ class GitHubError(RuntimeError):
     pass
 
 
+class UnsupportedRepository(GitHubError):
+    pass
+
+
 def github(path, method="GET", payload=None):
     command = [
         "gh", "api", "--method", method,
@@ -31,6 +35,17 @@ def github(path, method="GET", payload=None):
         text=True, capture_output=True, timeout=60, check=False,
     )
     if result.returncode:
+        try:
+            message = json.loads(result.stdout).get("message", "")
+        except json.JSONDecodeError:
+            message = ""
+
+        if (method == "GET" and "/rulesets?" in path
+                and "(HTTP 403)" in result.stderr
+                and message.startswith("Upgrade to GitHub ")
+                and message.endswith("to enable this feature.")):
+            raise UnsupportedRepository(message)
+
         raise GitHubError(f"{method} {path}: {result.stderr.strip()}")
 
     return json.loads(result.stdout)
@@ -161,7 +176,8 @@ def reconcile(baseline, config, apply=False, selected=None):
             entries = pages(f"{prefix}/rulesets?includes_parents=false")
             settings = config["repositories"].get(name)
             if not settings or not settings["checks"]:
-                raise ValueError("CI checks not configured; no rulesets changed")
+                report.append(f"WARNING {name}: CI checks not configured; no rulesets changed")
+                continue
 
             desired = desired_rulesets(baseline, settings["checks"])
             existing = {}
@@ -204,11 +220,18 @@ def reconcile(baseline, config, apply=False, selected=None):
 
                     report.append(f"APPLIED {name}: {ruleset['name']}")
 
+        except UnsupportedRepository as error:
+            report.append(f"WARNING {name}: {error}; no rulesets changed")
+
         except (GitHubError, ValueError, subprocess.TimeoutExpired) as error:
             failures += 1
             report.append(f"ERROR {name}: {error}")
 
-    report.insert(0, f"{'APPLY' if apply else 'DRY RUN'}: {len(names)} repositories, {failures} errors")
+    warnings = sum(line.startswith("WARNING ") for line in report)
+    report.insert(0, (
+        f"{'APPLY' if apply else 'DRY RUN'}: {len(names)} repositories, "
+        f"{warnings} warnings, {failures} errors"
+    ))
     return "\n".join(report) + "\n", failures
 
 
@@ -230,6 +253,12 @@ def main():
 
     report, failures = reconcile(baseline, config, args.apply, args.repo)
     print(report, end="")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        for line in report.splitlines():
+            if line.startswith("WARNING "):
+                message = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                print(f"::warning title=Repository skipped::{message}")
+
     if args.report:
         args.report.write_text(report)
 

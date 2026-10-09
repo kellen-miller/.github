@@ -39,17 +39,18 @@ The script discovers owned public and accessible private repositories. Forks and
 archived repositories are skipped before any ruleset reads or writes, even when
 explicitly selected with `--repo`. It also checks every configured repository,
 exposing App-installation gaps.
-A newly discovered repo or an empty check list is an error: no rulesets are written
+A newly discovered repo or an empty check list is a warning: no rulesets are written
 for that repo until its CI requirements are configured. Archived repos are reported
 and skipped. Private repositories currently reject rulesets on this account's
-plan; GitHub Pro is required. These failures remain visible with a nonzero exit,
-and do not prevent reconciliation of other repositories.
+plan; GitHub Pro is required. Missing CI and unsupported plans produce warnings
+in the report and GitHub Actions annotations, with a successful job status when
+there are no actual errors. Authentication, permission, API, write, and read-back
+verification failures still fail the job. Other repositories continue processing.
 
 Only the three named rulesets are managed. Other rulesets and classic branch
-protections are preserved. Their restrictions still apply: Chief's existing
-`default` ruleset, for example, blocks force pushes and requires conversation
-resolution. Those settings need a separate migration before the desired bypass
-behavior can take effect there. The script reports unmanaged rulesets for review;
+protections are preserved. Their active restrictions still apply. Chief's legacy
+`default` ruleset was disabled after its three replacements were verified; it is
+retained for rollback. The script reports unmanaged rulesets for review;
 it does not claim to reconcile every effective protection.
 
 ### Local preview
