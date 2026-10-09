@@ -14,3 +14,14 @@ jobs:
     uses: kellen-miller/ci/.github/workflows/renovate-config-validator.yaml@77d60a821d037aaed948a4770590edf79faf0965
     with:
       config-file: renovate-config.json
+  rulesets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/reconcile-rulesets.py --validate
+      - run: python -m unittest discover -s tests -v
