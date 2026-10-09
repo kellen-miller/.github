@@ -87,11 +87,11 @@ manually disabled/deleted if reverting their introduction.
 3. Run **Reconcile rulesets** manually with `apply` unchecked. Review its log and
    job summary, including missing CI, plan restrictions, and preserved protections.
 4. Run manually with `apply` checked when ready. Set repository variable
-   `RULESETS_APPLY_ENABLED=true` to enable daily writes. Otherwise daily runs are
+   `RULESETS_APPLY_ENABLED=true` to enable weekly writes. Otherwise weekly runs are
    previews. Set it back to `false` to stop scheduled writes.
 
 The workflow runs only from main, serializes runs without cancellation, and mints
 an installation token for all installed repositories. PR CI validates configuration
 and tests reconciliation offline, without App secrets. It runs only on PRs;
-reconciliation runs daily or manually, never on pushes or PRs. Nothing is applied
+reconciliation runs weekly (Mondays at 10:23 UTC) or manually, never on pushes or PRs. Nothing is applied
 by opening or merging this PR without configuring the App and enabling writes.
