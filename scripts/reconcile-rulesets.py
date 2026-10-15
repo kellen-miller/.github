@@ -4,6 +4,7 @@
 import argparse
 import copy
 import difflib
+import html
 import json
 import os
 from pathlib import Path
@@ -136,7 +137,7 @@ def normalized(ruleset):
     return ordered(value)
 
 
-def reconcile(baseline, config, apply=False, selected=None):
+def reconcile(baseline, config, apply=False, selected=None, show_diff=False):
     owner = config["owner"]
     # Public discovery catches new repos missing from a selected App installation.
     repositories = {repo["name"]: repo for repo in pages(f"users/{owner}/repos?type=owner")}
@@ -202,12 +203,15 @@ def reconcile(baseline, config, apply=False, selected=None):
 
                 action = "UPDATE" if current else "CREATE"
                 report.append(f"{action} {name}: {ruleset['name']}")
-                before = json.dumps(normalized(current), indent=2, sort_keys=True) if current else "{}"
-                after = json.dumps(normalized(ruleset), indent=2, sort_keys=True)
-                report.extend(difflib.unified_diff(
-                    before.splitlines(), after.splitlines(), fromfile="current",
-                    tofile="desired", lineterm="",
-                ))
+                if show_diff:
+                    before = json.dumps(normalized(current), indent=2, sort_keys=True) if current else "{}"
+                    after = json.dumps(normalized(ruleset), indent=2, sort_keys=True)
+                    report.extend(difflib.unified_diff(
+                        before.splitlines(), after.splitlines(), fromfile="current",
+                        tofile="desired", lineterm="",
+                    ))
+
+
                 if apply:
                     path = f"{prefix}/rulesets"
                     if current:
@@ -235,8 +239,63 @@ def reconcile(baseline, config, apply=False, selected=None):
     return "\n".join(report) + "\n", failures
 
 
+def summary_table(report):
+    """Map reconciliation outcomes to one readable row per repository."""
+    repositories = {}
+    events = {"OK", "CREATE", "UPDATE", "APPLIED", "KEEP", "WARNING", "SKIP", "ERROR"}
+    for line in report.splitlines()[1:]:
+        event, _, remainder = line.partition(" ")
+        if event not in events:
+            continue
+
+        name, separator, detail = remainder.partition(": ")
+        if not separator:
+            continue
+
+        outcomes = repositories.setdefault(name, {})
+        outcomes.setdefault(event, []).append(detail)
+
+    lines = [
+        "## Repository ruleset reconciliation", "", report.splitlines()[0], "",
+        "| Repository | Result | Details |", "| --- | --- | --- |",
+    ]
+    for name, outcomes in repositories.items():
+        details = []
+        if "ERROR" in outcomes:
+            result = "Failed"
+        elif "WARNING" in outcomes:
+            result = "Warning"
+        elif "SKIP" in outcomes:
+            result = "Skipped"
+        elif "APPLIED" in outcomes:
+            result = "Applied"
+        elif "CREATE" in outcomes or "UPDATE" in outcomes:
+            result = "Changes planned"
+        else:
+            result = "Unchanged"
+
+        for event, label in [("APPLIED", "Applied"), ("OK", "Unchanged")]:
+            if event in outcomes:
+                details.append(f"{label}: {len(outcomes[event])} rulesets")
+
+        if "APPLIED" not in outcomes:
+            for event, label in [("CREATE", "Create"), ("UPDATE", "Update")]:
+                if event in outcomes:
+                    details.append(f"{label}: {', '.join(outcomes[event])}")
+
+        for event in ["ERROR", "WARNING", "SKIP", "KEEP"]:
+            details.extend(outcomes.get(event, []))
+
+        safe_name = html.escape(name).replace("|", "&#124;")
+        safe_details = "; ".join(html.escape(detail).replace("|", "&#124;") for detail in details)
+        lines.append(f"| {safe_name} | {result} | {safe_details} |")
+
+    return "\n".join(lines) + "\n"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--diff", action="store_true", help="Include full JSON diffs in logs/report")
     parser.add_argument("--apply", action="store_true", help="Write changes (default: dry run)")
     parser.add_argument("--validate", action="store_true", help="Validate configuration offline")
     parser.add_argument("--repo", action="append", help="Limit to an owned repo; repeatable")
@@ -251,7 +310,7 @@ def main():
         print(f"Configuration valid; {len(pending)} repositories pending CI: {', '.join(pending)}")
         return 0
 
-    report, failures = reconcile(baseline, config, args.apply, args.repo)
+    report, failures = reconcile(baseline, config, args.apply, args.repo, args.diff)
     print(report, end="")
     if os.environ.get("GITHUB_ACTIONS") == "true":
         for line in report.splitlines():
@@ -264,7 +323,7 @@ def main():
 
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a") as stream:
-            stream.write("```text\n" + report[:900000] + "\n```\n")
+            stream.write(summary_table(report))
 
     return int(bool(failures))
 

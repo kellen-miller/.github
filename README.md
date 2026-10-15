@@ -18,11 +18,15 @@ or override silent mode. Fork processing follows the app's installation settings
 | Ruleset | Protections | Bypass |
 | --- | --- | --- |
 | `personal/main` | No deletion; PR required; merge/squash only; CI required against current main; checks exempt on branch creation | None |
-| `personal/reviews` | One approval; dismiss stale approvals; approve latest reviewable push; extra approval for unattributed Copilot PRs | `kellen-miller` and `renovate-approve`, PR-only |
+| `personal/reviews` | One approval; dismiss stale approvals; approve latest reviewable push; extra approval for unattributed Copilot PRs | `kellen-miller`, exempt; `renovate-approve`, PR-only |
 | `personal/force-pushes` | Block force pushes | `kellen-miller`, always |
 
 Conversations need not be resolved. User ID `37915888` and App ID `7394` are
 GitHub's IDs for these bypass identities, not the reconciliation App.
+Kellen is exempt from the review ruleset, including latest-push approval, so
+merging does not require selecting a manual override. GitHub does not record a
+bypass audit entry for exempt actors. The
+separate main ruleset still requires a PR and passing CI, with no bypass actors.
 Force-push bypass does **not** bypass the independent PR or CI rules.
 The Copilot field `require_extra_approval_for_unattributed_changes` is returned
 by GitHub's live ruleset API, although absent from its published OpenAPI schema.
@@ -65,7 +69,11 @@ python3 scripts/reconcile-rulesets.py --report /tmp/rulesets-preview.txt
 python3 scripts/reconcile-rulesets.py --repo .github
 ```
 
-Review the diff before explicitly applying:
+The Actions summary shows a table with one row per repository: applied, unchanged,
+planned changes, warnings, skips, or failures. Logs omit JSON diffs by default; use
+`--diff` for detailed debugging.
+
+Review the preview before explicitly applying:
 
 ```sh
 python3 scripts/reconcile-rulesets.py --apply --repo .github

@@ -78,7 +78,7 @@ class ReconcileTests(unittest.TestCase):
         main, reviews, force = MODULE.desired_rulesets(self.baseline, ["test"])
         self.assertEqual(main["bypass_actors"], [])
         self.assertEqual(reviews["bypass_actors"], [
-            {"actor_type": "User", "actor_id": 37915888, "bypass_mode": "pull_request"},
+            {"actor_type": "User", "actor_id": 37915888, "bypass_mode": "exempt"},
             {"actor_type": "Integration", "actor_id": 7394, "bypass_mode": "pull_request"},
         ])
         self.assertEqual(force["bypass_actors"], [
@@ -206,6 +206,37 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual(failures, 0)
         self.assertIn("WARNING private-demo: CI checks not configured", report)
         self.assertFalse(any(path.startswith("user/repos?") for _, path, _ in self.calls))
+
+    def test_summary_groups_outcomes_and_escapes_table_content(self):
+        report = "\n".join([
+            "APPLY: 5 repositories, 1 warnings, 1 errors",
+            "UPDATE demo: personal/reviews", "APPLIED demo: personal/reviews",
+            "OK demo: personal/main", "OK demo: personal/force-pushes",
+            "WARNING private-demo: Upgrade to Pro | plan <limited>",
+            "SKIP fork: fork", "ERROR denied: permission denied",
+            "OK stable: personal/main", "OK stable: personal/reviews",
+            '+  "bypass_actors": []',
+        ])
+        summary = MODULE.summary_table(report)
+        self.assertEqual(summary.count("| demo |"), 1)
+        self.assertIn("| demo | Applied | Applied: 1 rulesets; Unchanged: 2 rulesets |", summary)
+        self.assertIn("| private-demo | Warning | Upgrade to Pro &#124; plan &lt;limited&gt; |", summary)
+        self.assertIn("| fork | Skipped | fork |", summary)
+        self.assertIn("| denied | Failed | permission denied |", summary)
+        self.assertIn("| stable | Unchanged | Unchanged: 2 rulesets |", summary)
+        self.assertNotIn("bypass_actors", summary)
+        self.assertNotIn("```", summary)
+
+    def test_json_diffs_are_opt_in(self):
+        report, _ = self.run_reconcile()
+        self.assertNotIn("--- current", report)
+        with patch.object(MODULE, "github", side_effect=self.api):
+            detailed, failures = MODULE.reconcile(self.baseline, self.config, show_diff=True)
+
+        self.assertEqual(failures, 0)
+        self.assertIn("--- current", detailed)
+        self.assertNotIn("bypass_actors", MODULE.summary_table(detailed))
+        self.assertIn("| demo | Changes planned |", MODULE.summary_table(detailed))
 
     def test_pagination_keeps_all_repositories(self):
         with patch.object(MODULE, "github", side_effect=[list(range(100)), [100]]) as request:
