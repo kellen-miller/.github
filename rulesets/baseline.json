@@ -27,7 +27,7 @@
     "enforcement": "active",
     "conditions": {"ref_name": {"include": ["refs/heads/main"], "exclude": []}},
     "bypass_actors": [
-      {"actor_type": "User", "actor_id": 37915888, "bypass_mode": "pull_request"},
+      {"actor_type": "User", "actor_id": 37915888, "bypass_mode": "exempt"},
       {"actor_type": "Integration", "actor_id": 7394, "bypass_mode": "pull_request"}
     ],
     "rules": [
