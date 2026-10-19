@@ -17,7 +17,7 @@ or override silent mode. Fork processing follows the app's installation settings
 
 | Ruleset | Protections | Bypass |
 | --- | --- | --- |
-| `personal/main` | No deletion; PR required; merge/squash only; CI required against current main; checks exempt on branch creation | None |
+| `personal/main` | No deletion; PR required; merge/squash only; CI required against current main; checks exempt on branch creation | `kellen-miller`, PR-only |
 | `personal/reviews` | One approval; dismiss stale approvals; approve latest reviewable push; extra approval for unattributed Copilot PRs | `kellen-miller`, exempt; `renovate-approve`, PR-only |
 | `personal/force-pushes` | Block force pushes | `kellen-miller`, always |
 
@@ -25,9 +25,11 @@ Conversations need not be resolved. User ID `37915888` and App ID `7394` are
 GitHub's IDs for these bypass identities, not the reconciliation App.
 Kellen is exempt from the review ruleset, including latest-push approval, so
 merging does not require selecting a manual override. GitHub does not record a
-bypass audit entry for exempt actors. The
-separate main ruleset still requires a PR and passing CI, with no bypass actors.
-Force-push bypass does **not** bypass the independent PR or CI rules.
+bypass audit entry for exempt actors. The separate main ruleset lets only
+`kellen-miller` bypass CI when merging a PR, including squash merges while checks
+are pending or failing. Use GitHub's merge override (or `gh pr merge --admin
+--squash`) when needed. This PR-only bypass still requires a PR; other actors
+must pass CI. Force-push permission alone does not bypass the main ruleset.
 The Copilot field `require_extra_approval_for_unattributed_changes` is returned
 by GitHub's live ruleset API, although absent from its published OpenAPI schema.
 The script sends it explicitly and verifies the saved configuration after writes.

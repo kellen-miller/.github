@@ -74,9 +74,11 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual(writes, [("PUT", "repos/kellen-miller/demo/rulesets/1")])
         self.assertEqual(self.saved[1]["enforcement"], "active")
 
-    def test_bypasses_cannot_skip_ci_or_pr(self):
+    def test_only_owner_can_bypass_ci_through_pr(self):
         main, reviews, force = MODULE.desired_rulesets(self.baseline, ["test"])
-        self.assertEqual(main["bypass_actors"], [])
+        self.assertEqual(main["bypass_actors"], [
+            {"actor_type": "User", "actor_id": 37915888, "bypass_mode": "pull_request"},
+        ])
         self.assertEqual(reviews["bypass_actors"], [
             {"actor_type": "User", "actor_id": 37915888, "bypass_mode": "exempt"},
             {"actor_type": "Integration", "actor_id": 7394, "bypass_mode": "pull_request"},
