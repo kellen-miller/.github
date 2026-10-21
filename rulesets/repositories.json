@@ -218,8 +218,10 @@
     },
     "sup": {
       "checks": [
-        "Format and lint / Python Format",
-        "Format and lint / Python Lint",
+        "Rust Format",
+        "Rust Clippy",
+        "Rust Tests (Linux)",
+        "Rust Tests (macOS)",
         "YAML lint",
         "renovate / Renovate Config Validator",
         "workflows / lint"
