@@ -118,7 +118,7 @@ def desired_rulesets(baseline, checks, release_deploy_key_id=None):
             if ruleset["name"] in {"personal/main", "personal/reviews"}:
                 ruleset["bypass_actors"].append({
                     "actor_type": "DeployKey",
-                    "actor_id": release_deploy_key_id,
+                    "actor_id": None,
                     "bypass_mode": "always",
                 })
 
