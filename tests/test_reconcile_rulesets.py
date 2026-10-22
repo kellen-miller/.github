@@ -94,6 +94,26 @@ class ReconcileTests(unittest.TestCase):
         })
         self.assertTrue(reviews["rules"][0]["parameters"]["require_extra_approval_for_unattributed_changes"])
 
+    def test_release_key_exception_is_scoped_idempotent_and_keeps_force_protection(self):
+        self.config["repositories"]["demo"]["release_deploy_key_id"] = 123
+        report, failures = self.run_reconcile(apply=True)
+        self.assertEqual(failures, 0)
+        expected = {"actor_type": "DeployKey", "actor_id": 123, "bypass_mode": "always"}
+        for ruleset in self.saved.values():
+            if ruleset["name"] == "personal/force-pushes":
+                self.assertNotIn(expected, ruleset["bypass_actors"])
+                self.assertEqual(ruleset["rules"], [{"type": "non_fast_forward"}])
+            else:
+                self.assertIn(expected, ruleset["bypass_actors"])
+
+        self.calls.clear()
+        report, failures = self.run_reconcile(apply=True)
+        self.assertEqual(failures, 0)
+        self.assertEqual(report.count("OK demo:"), 3)
+        self.assertTrue(all(method == "GET" for method, _, _ in self.calls))
+        ordinary = MODULE.desired_rulesets(self.baseline, ["test"])
+        self.assertTrue(all(expected not in rule["bypass_actors"] for rule in ordinary))
+
     def test_missing_checks_and_new_repos_warn_without_writes(self):
         for repositories in ({}, {"demo": {"checks": []}}):
             self.config["repositories"] = repositories

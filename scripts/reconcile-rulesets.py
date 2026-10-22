@@ -93,10 +93,14 @@ def load_configuration(root):
         ) or len(checks) != len(set(checks)):
             raise ValueError(f"Invalid or duplicate checks: {name}")
 
+        key = repository.get("release_deploy_key_id")
+        if key is not None and (type(key) is not int or key <= 0):
+            raise ValueError(f"Invalid release deploy key: {name}")
+
     return baseline, config
 
 
-def desired_rulesets(baseline, checks):
+def desired_rulesets(baseline, checks, release_deploy_key_id=None):
     desired = copy.deepcopy(baseline)
     main = next(ruleset for ruleset in desired if ruleset["name"] == "personal/main")
     main["rules"].append({
@@ -109,6 +113,15 @@ def desired_rulesets(baseline, checks):
             ],
         },
     })
+    if release_deploy_key_id is not None:
+        for ruleset in desired:
+            if ruleset["name"] in {"personal/main", "personal/reviews"}:
+                ruleset["bypass_actors"].append({
+                    "actor_type": "DeployKey",
+                    "actor_id": release_deploy_key_id,
+                    "bypass_mode": "always",
+                })
+
     return desired
 
 
@@ -180,7 +193,9 @@ def reconcile(baseline, config, apply=False, selected=None, show_diff=False):
                 report.append(f"WARNING {name}: CI checks not configured; no rulesets changed")
                 continue
 
-            desired = desired_rulesets(baseline, settings["checks"])
+            desired = desired_rulesets(
+                baseline, settings["checks"], settings.get("release_deploy_key_id"),
+            )
             existing = {}
             for entry in entries:
                 if entry["name"] in {rule["name"] for rule in desired}:

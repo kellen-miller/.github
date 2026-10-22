@@ -50,7 +50,8 @@
     "ci": {
       "checks": [
         "check"
-      ]
+      ],
+      "release_deploy_key_id": 167336584
     },
     "deburr": {
       "checks": [
