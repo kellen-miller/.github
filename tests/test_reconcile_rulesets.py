@@ -98,7 +98,7 @@ class ReconcileTests(unittest.TestCase):
         self.config["repositories"]["demo"]["release_deploy_key_id"] = 123
         report, failures = self.run_reconcile(apply=True)
         self.assertEqual(failures, 0)
-        expected = {"actor_type": "DeployKey", "actor_id": 123, "bypass_mode": "always"}
+        expected = {"actor_type": "DeployKey", "actor_id": None, "bypass_mode": "always"}
         for ruleset in self.saved.values():
             if ruleset["name"] == "personal/force-pushes":
                 self.assertNotIn(expected, ruleset["bypass_actors"])

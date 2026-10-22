@@ -35,7 +35,9 @@ by GitHub's live ruleset API, although absent from its published OpenAPI schema.
 The script sends it explicitly and verifies the saved configuration after writes.
 
 The `ci` repository additionally sets `release_deploy_key_id` for its dedicated
-runtime release SSH key. Only that repository's `personal/main` and
+runtime release SSH key. GitHub represents deploy-key bypasses with a null
+actor ID, covering all write deploy keys in that repository; `ci` currently has
+only the runtime release key. Only that repository's `personal/main` and
 `personal/reviews` rulesets permit direct pushes with this key. Force-push
 protection remains enforced. The reconciler retains this configured exception
 and removes drift; other repositories retain the baseline bypass list.
