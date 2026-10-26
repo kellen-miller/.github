@@ -34,38 +34,42 @@ The Copilot field `require_extra_approval_for_unattributed_changes` is returned
 by GitHub's live ruleset API, although absent from its published OpenAPI schema.
 The script sends it explicitly and verifies the saved configuration after writes.
 
-The `ci` repository additionally sets `release_deploy_key_id` for its dedicated
-runtime release SSH key. GitHub represents deploy-key bypasses with a null
-actor ID, covering all write deploy keys in that repository; `ci` currently has
-only the runtime release key. Only that repository's `personal/main` and
-`personal/reviews` rulesets permit direct pushes with this key. Force-push
-protection remains enforced. The reconciler retains this configured exception
-and removes drift; other repositories retain the baseline bypass list.
+Each repository declares its own required checks in
+`.github/ruleset-requirements.json` on its default branch:
 
-`rulesets/repositories.json` lists required GitHub Actions check names per repo.
-Initial names were observed on recent PRs targeting main; review them as workflows
-change. Celerity's generated-contract validation runs on PRs and is included.
-Checks are bound to the GitHub Actions App (`15368`). Keep always-triggered checks
-here; path-filtered workflows can leave PRs blocked waiting for an absent check.
-There is no universal "all workflows must pass" rule for personal repositories.
+```json
+{
+  "checks": ["build", "test"]
+}
+```
 
-The script discovers owned public and accessible private repositories. Forks and
-archived repositories are skipped before any ruleset reads or writes, even when
-explicitly selected with `--repo`. It also checks every configured repository,
-exposing App-installation gaps.
-A newly discovered repo or an empty check list is a warning: no rulesets are written
-for that repo until its CI requirements are configured. Archived repos are reported
-and skipped. Private repositories currently reject rulesets on this account's
-plan; GitHub Pro is required. Missing CI and unsupported plans produce warnings
-in the report and GitHub Actions annotations, with a successful job status when
-there are no actual errors. Authentication, permission, API, write, and read-back
-verification failures still fail the job. Other repositories continue processing.
+Check names must be nonempty, unique, and free of surrounding whitespace and
+control characters. They are bound to the GitHub Actions App (`15368`). Declare
+checks that run on every PR; an absent path-filtered check can block merging.
+The optional `release_deploy_key_id` must be a positive integer. It permits
+deploy-key bypasses in `personal/main` and `personal/reviews`; force-push
+protection stays enforced. GitHub represents this bypass with a null actor ID,
+so it covers every write deploy key in that repository. The controller verifies
+that the declared key exists and permits writes before reading or changing
+rulesets. A missing or read-only key warns and leaves protections untouched.
+Review all write keys before declaring the exception.
 
-Only the three named rulesets are managed. Other rulesets and classic branch
-protections are preserved. Their active restrictions still apply. Chief's legacy
-`default` ruleset was disabled after its three replacements were verified; it is
-retained for rollback. The script reports unmanaged rulesets for review;
-it does not claim to reconcile every effective protection.
+The controller discovers repositories owned by `kellen-miller` through the public
+repository list and the App installation, or the local user's accessible repos.
+There is no central repository inventory. It skips archived repositories and
+forks, resolves each default branch to an immutable commit SHA, then reads the
+requirements file with the [Contents API](https://docs.github.com/en/rest/repos/contents).
+Missing, malformed, or empty requirements produce a warning and leave existing
+protections untouched. Permission, API, write, and read-back failures fail the
+run while other repositories continue. Unsupported ruleset plans produce a
+warning. Only the three named rulesets are managed; other rulesets and classic
+branch protections remain untouched and may impose additional restrictions.
+
+Public repositories get detailed reports. Private repositories and repositories
+without explicit public metadata appear only as aggregate counts by outcome.
+Their names, check names, requirements, diffs, and API errors stay out of logs,
+reports, annotations, and job summaries, including with `--diff`. Use GitHub CLI
+separately when private details are needed.
 
 ### Local preview
 
@@ -79,9 +83,10 @@ python3 scripts/reconcile-rulesets.py --report /tmp/rulesets-preview.txt
 python3 scripts/reconcile-rulesets.py --repo .github
 ```
 
-The Actions summary shows a table with one row per repository: applied, unchanged,
-planned changes, warnings, skips, or failures. Logs omit JSON diffs by default; use
-`--diff` for detailed debugging.
+The Actions summary shows one row per public repository plus private outcome
+counts. Logs omit JSON diffs by default; `--diff` includes public diffs.
+`--validate` checks the local baseline and this repository's own requirements,
+without API calls.
 
 Review the preview before explicitly applying:
 
@@ -93,13 +98,35 @@ python3 scripts/reconcile-rulesets.py --apply
 Writes are sequential and verified by reading back each ruleset. A failed apply
 can leave some rulesets updated; fix the reported error and rerun. Identical state
 produces no writes. No rulesets are deleted. To roll back, disable scheduled writes
-and revert the configuration, then reconcile; newly created rulesets must be
-manually disabled/deleted if reverting their introduction.
+and revert the affected repository's requirements, then reconcile. Newly created
+rulesets must be manually disabled or deleted if reverting their introduction.
+
+### Bootstrap or rename required checks
+
+For a first declaration or a check rename, pause scheduled writes by setting
+`RULESETS_APPLY_ENABLED=false`. Let the candidate PR's new checks pass before
+applying its requirements. Use the candidate's full commit SHA and select exactly
+one repository:
+
+```sh
+python3 scripts/reconcile-rulesets.py --repo .github --requirements-ref FULL_40_CHARACTER_COMMIT_SHA
+python3 scripts/reconcile-rulesets.py --apply --repo .github --requirements-ref FULL_40_CHARACTER_COMMIT_SHA
+```
+
+Review the preview, apply the candidate requirements, then merge that exact PR
+head, then restore `RULESETS_APPLY_ENABLED` to its previous value. Keeping
+scheduled writes paused until that merge prevents the old default-branch
+declaration from undoing the bootstrap. This replaces the old check set; it does
+not require old and new names at once. A missing file or invalid candidate SHA
+fails bootstrap instead of silently skipping it. The override changes only where
+requirements are read. The scheduled
+workflow always reads default branches and never supplies this override.
 
 ### GitHub Actions setup
 
 1. Create a dedicated GitHub App with repository **Administration: read and write**
-   (Metadata read is automatic). No webhook subscription is needed. Install it on
+   and **Contents: read** (Metadata read is automatic). Approve the Contents grant
+   on existing installations. No webhook subscription is needed. Install it on
    **all repositories** owned by `kellen-miller`, so future private repos are covered.
 2. Set repository variable `RULESETS_APP_ID` and Actions secret
    `RULESETS_APP_PRIVATE_KEY` in this repository.

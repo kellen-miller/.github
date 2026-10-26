@@ -42,6 +42,7 @@ jobs:
           private-key: ${{ secrets.RULESETS_APP_PRIVATE_KEY }}
           owner: kellen-miller
           permission-administration: write
+          permission-contents: read
       - name: Preview or apply
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}

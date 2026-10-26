@@ -2,24 +2,36 @@
 """Reconcile only the three personal rulesets; default to read-only preview."""
 
 import argparse
+import base64
+import binascii
 import copy
 import difflib
 import html
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[1]
 API_VERSION = "2026-03-10"
+OWNER = "kellen-miller"
+REQUIREMENTS_PATH = ".github/ruleset-requirements.json"
 
 
 class GitHubError(RuntimeError):
-    pass
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
 
 
 class UnsupportedRepository(GitHubError):
+    pass
+
+
+class InvalidRequirements(ValueError):
     pass
 
 
@@ -47,7 +59,11 @@ def github(path, method="GET", payload=None):
                 and message.endswith("to enable this feature.")):
             raise UnsupportedRepository(message)
 
-        raise GitHubError(f"{method} {path}: {result.stderr.strip()}")
+        status = re.search(r"\(HTTP (\d+)\)", result.stderr)
+        raise GitHubError(
+            f"{method} {path}: {result.stderr.strip()}",
+            int(status[1]) if status else None,
+        )
 
     return json.loads(result.stdout)
 
@@ -67,10 +83,6 @@ def pages(path, key=None):
 
 def load_configuration(root):
     baseline = json.loads((root / "rulesets/baseline.json").read_text())
-    config = json.loads((root / "rulesets/repositories.json").read_text())
-    if config["owner"] != "kellen-miller":
-        raise ValueError("The baseline's bypass identities belong to kellen-miller")
-
     names = [rule["name"] for rule in baseline]
     if sorted(names) != sorted([
         "personal/main", "personal/reviews", "personal/force-pushes",
@@ -83,21 +95,71 @@ def load_configuration(root):
         } or ruleset["target"] != "branch" or ruleset["enforcement"] != "active":
             raise ValueError("Managed rulesets must actively target main")
 
-    for name, repository in config["repositories"].items():
-        if not name or "/" in name:
-            raise ValueError(f"Invalid repository name: {name}")
+    requirements = validate_requirements(json.loads((root / REQUIREMENTS_PATH).read_text()))
+    return baseline, requirements
 
-        checks = repository["checks"]
-        if not isinstance(checks, list) or any(
-            not isinstance(check, str) or not check.strip() for check in checks
-        ) or len(checks) != len(set(checks)):
-            raise ValueError(f"Invalid or duplicate checks: {name}")
 
-        key = repository.get("release_deploy_key_id")
-        if key is not None and (type(key) is not int or key <= 0):
-            raise ValueError(f"Invalid release deploy key: {name}")
+def validate_requirements(settings):
+    """Validate one repository's declaration without rendering its contents."""
+    if not isinstance(settings, dict) or set(settings) - {"checks", "release_deploy_key_id"}:
+        raise InvalidRequirements("Requirements must contain checks and an optional release deploy key")
 
-    return baseline, config
+    checks = settings.get("checks")
+    if not isinstance(checks, list) or not checks or any(
+        not isinstance(check, str) or not check.strip() or check != check.strip()
+        or any(ord(character) < 32 or ord(character) == 127 for character in check)
+        for check in checks
+    ) or len(checks) != len(set(checks)):
+        raise InvalidRequirements("Requirements need nonempty, unique check names without surrounding whitespace or controls")
+
+    if "release_deploy_key_id" in settings:
+        key = settings["release_deploy_key_id"]
+        if type(key) is not int or key <= 0:
+            raise InvalidRequirements("Release deploy key must be a positive integer")
+
+    return settings
+
+
+def fetch_requirements(prefix, repository, requirements_ref):
+    """Read a declaration through GitHub's Contents API at one immutable commit."""
+    revision = requirements_ref
+    if revision is None:
+        branch = repository.get("default_branch")
+        if not isinstance(branch, str) or not branch:
+            raise InvalidRequirements("Default branch metadata is missing")
+
+        try:
+            response = github(f"{prefix}/branches/{quote(branch, safe='')}")
+        except GitHubError as error:
+            if error.status in {404, 409}:
+                raise InvalidRequirements("Default branch is missing or has no commits") from None
+
+            raise
+
+        commit = response.get("commit") if isinstance(response, dict) else None
+        revision = commit.get("sha") if isinstance(commit, dict) else None
+        if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-fA-F]{40}", revision):
+            raise GitHubError("Default branch did not resolve to a full commit SHA")
+
+    try:
+        content = github(f"{prefix}/contents/{REQUIREMENTS_PATH}?ref={revision}")
+    except GitHubError as error:
+        if error.status == 404:
+            if requirements_ref is not None:
+                raise GitHubError("Bootstrap requirements were not found at the requested commit") from None
+
+            raise InvalidRequirements("Requirements file is missing") from None
+
+        raise
+
+    try:
+        if content.get("type") != "file" or content.get("encoding") != "base64":
+            raise InvalidRequirements("Requirements must be a base64 encoded JSON file")
+
+        decoded = base64.b64decode("".join(content["content"].split()), validate=True)
+        return validate_requirements(json.loads(decoded))
+    except (AttributeError, KeyError, TypeError, ValueError, UnicodeError, binascii.Error):
+        raise InvalidRequirements("Requirements file is malformed or invalid") from None
 
 
 def desired_rulesets(baseline, checks, release_deploy_key_id=None):
@@ -150,49 +212,65 @@ def normalized(ruleset):
     return ordered(value)
 
 
-def reconcile(baseline, config, apply=False, selected=None, show_diff=False):
-    owner = config["owner"]
-    # Public discovery catches new repos missing from a selected App installation.
-    repositories = {repo["name"]: repo for repo in pages(f"users/{owner}/repos?type=owner")}
-    try:
-        accessible = pages("installation/repositories", "repositories")
-    except GitHubError:
-        # Local gh authentication uses a user token, not an installation token.
-        accessible = pages("user/repos?affiliation=owner")
+def reconcile(baseline, apply=False, selected=None, show_diff=False, requirements_ref=None):
+    if requirements_ref is not None and (
+        not re.fullmatch(r"[0-9a-fA-F]{40}", requirements_ref) or not selected or len(selected) != 1
+    ):
+        raise ValueError("--requirements-ref needs a full 40-character commit SHA and exactly one --repo")
 
-    repositories.update({
-        repo["name"]: repo for repo in accessible if repo["owner"]["login"] == owner
-    })
-    names = set(repositories) | set(config["repositories"])
+    # Discovery errors can contain private metadata. Do not forward their raw text.
+    try:
+        repositories = {repo["name"]: repo for repo in pages(f"users/{OWNER}/repos?type=owner")}
+        try:
+            accessible = pages("installation/repositories", "repositories")
+        except GitHubError:
+            accessible = pages("user/repos?affiliation=owner")
+
+        repositories.update({
+            repo["name"]: repo for repo in accessible if repo["owner"]["login"] == OWNER
+        })
+    except (GitHubError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
+        raise GitHubError("Repository discovery failed; check token access and permissions") from None
+
+    names = set(repositories)
     if selected:
         if not set(selected) <= names:
-            raise ValueError("Selected repository is not owned or configured")
+            raise ValueError("Selected repository was not discovered in the owner's accessible repositories")
 
         names = set(selected)
 
     report = []
+    private_outcomes = {}
     failures = 0
+    warnings = 0
     for name in sorted(names):
-        prefix = f"repos/{owner}/{name}"
+        repository = repositories[name]
+        public = repository.get("private") is False and repository.get("visibility") in (None, "public")
+        prefix = f"repos/{OWNER}/{name}"
+        details = []
+        outcome = "unchanged"
         try:
-            repository = repositories.get(name) or github(prefix)
-            if repository["owner"]["login"] != owner:
-                raise ValueError(f"Repository is no longer owned by {owner}")
+            if repository["owner"]["login"] != OWNER:
+                raise ValueError("Repository is no longer owned by the configured account")
 
             if repository["archived"]:
-                report.append(f"SKIP {name}: archived (read-only)")
+                outcome = "skipped"
+                details.append(f"SKIP {name}: archived (read-only)")
                 continue
 
             if repository["fork"]:
-                report.append(f"SKIP {name}: fork")
+                outcome = "skipped"
+                details.append(f"SKIP {name}: fork")
                 continue
+
+            settings = fetch_requirements(prefix, repository, requirements_ref)
+            deploy_key_id = settings.get("release_deploy_key_id")
+            if deploy_key_id is not None:
+                deploy_keys = pages(f"{prefix}/keys")
+                if not any(key.get("id") == deploy_key_id and key.get("read_only") is False for key in deploy_keys):
+                    raise InvalidRequirements("Declared release deploy key is missing or does not allow writes")
 
             entries = pages(f"{prefix}/rulesets?includes_parents=false")
-            settings = config["repositories"].get(name)
-            if not settings or not settings["checks"]:
-                report.append(f"WARNING {name}: CI checks not configured; no rulesets changed")
-                continue
-
             desired = desired_rulesets(
                 baseline, settings["checks"], settings.get("release_deploy_key_id"),
             )
@@ -204,7 +282,7 @@ def reconcile(baseline, config, apply=False, selected=None, show_diff=False):
 
                     existing[entry["name"]] = github(f"{prefix}/rulesets/{entry['id']}")
                 else:
-                    report.append(
+                    details.append(
                         f"KEEP {name}: unmanaged ruleset {entry['name']} "
                         "may impose additional restrictions/bypass limits"
                     )
@@ -213,15 +291,15 @@ def reconcile(baseline, config, apply=False, selected=None, show_diff=False):
             for ruleset in desired:
                 current = existing.get(ruleset["name"])
                 if current and normalized(current) == normalized(ruleset):
-                    report.append(f"OK {name}: {ruleset['name']}")
+                    details.append(f"OK {name}: {ruleset['name']}")
                     continue
 
                 action = "UPDATE" if current else "CREATE"
-                report.append(f"{action} {name}: {ruleset['name']}")
+                details.append(f"{action} {name}: {ruleset['name']}")
                 if show_diff:
                     before = json.dumps(normalized(current), indent=2, sort_keys=True) if current else "{}"
                     after = json.dumps(normalized(ruleset), indent=2, sort_keys=True)
-                    report.extend(difflib.unified_diff(
+                    details.extend(difflib.unified_diff(
                         before.splitlines(), after.splitlines(), fromfile="current",
                         tofile="desired", lineterm="",
                     ))
@@ -237,16 +315,35 @@ def reconcile(baseline, config, apply=False, selected=None, show_diff=False):
                     if normalized(saved) != normalized(ruleset):
                         raise GitHubError(f"Read-back verification failed: {ruleset['name']}")
 
-                    report.append(f"APPLIED {name}: {ruleset['name']}")
+                    details.append(f"APPLIED {name}: {ruleset['name']}")
 
-        except UnsupportedRepository as error:
-            report.append(f"WARNING {name}: {error}; no rulesets changed")
+            if any(line.startswith("APPLIED ") for line in details):
+                outcome = "applied"
+            elif any(line.startswith(("CREATE ", "UPDATE ")) for line in details):
+                outcome = "planned"
 
-        except (GitHubError, ValueError, subprocess.TimeoutExpired) as error:
+        except (UnsupportedRepository, InvalidRequirements) as error:
+            warnings += 1
+            outcome = "warnings"
+            details.append(f"WARNING {name}: {error}; no rulesets changed")
+
+        except (GitHubError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as error:
             failures += 1
-            report.append(f"ERROR {name}: {error}")
+            outcome = "errors"
+            details.append(f"ERROR {name}: {error}")
 
-    warnings = sum(line.startswith("WARNING ") for line in report)
+        finally:
+            # Publish only explicitly public metadata. Private/unknown details,
+            # including diffs and raw operation errors, never leave this buffer.
+            if public:
+                report.extend(details)
+            else:
+                private_outcomes[outcome] = private_outcomes.get(outcome, 0) + 1
+
+    if private_outcomes:
+        counts = "; ".join(f"{private_outcomes[key]} {key}" for key in sorted(private_outcomes))
+        report.append(f"PRIVATE: {sum(private_outcomes.values())} repositories; {counts}")
+
     report.insert(0, (
         f"{'APPLY' if apply else 'DRY RUN'}: {len(names)} repositories, "
         f"{warnings} warnings, {failures} errors"
@@ -274,6 +371,11 @@ def summary_table(report):
         "## Repository ruleset reconciliation", "", report.splitlines()[0], "",
         "| Repository | Result | Details |", "| --- | --- | --- |",
     ]
+    for line in report.splitlines():
+        if line.startswith("PRIVATE: "):
+            lines.insert(4, line)
+            lines.insert(5, "")
+
     for name, outcomes in repositories.items():
         details = []
         if "ERROR" in outcomes:
@@ -314,24 +416,28 @@ def main():
     parser.add_argument("--apply", action="store_true", help="Write changes (default: dry run)")
     parser.add_argument("--validate", action="store_true", help="Validate configuration offline")
     parser.add_argument("--repo", action="append", help="Limit to an owned repo; repeatable")
-    parser.add_argument("--report", type=Path, help="Save the full preview/application report")
+    parser.add_argument("--report", type=Path, help="Save the privacy-filtered reconciliation report")
+    parser.add_argument("--requirements-ref", help="Read requirements at a full commit SHA for exactly one --repo")
     args = parser.parse_args()
-    baseline, config = load_configuration(ROOT)
+    baseline, _ = load_configuration(ROOT)
     if args.validate:
         if args.apply:
             parser.error("--validate and --apply are mutually exclusive")
 
-        pending = [name for name, repo in config["repositories"].items() if not repo["checks"]]
-        print(f"Configuration valid; {len(pending)} repositories pending CI: {', '.join(pending)}")
+        print("Shared baseline and this repository's requirements are valid")
         return 0
 
-    report, failures = reconcile(baseline, config, args.apply, args.repo, args.diff)
+    report, failures = reconcile(baseline, args.apply, args.repo, args.diff, args.requirements_ref)
     print(report, end="")
     if os.environ.get("GITHUB_ACTIONS") == "true":
         for line in report.splitlines():
             if line.startswith("WARNING "):
                 message = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
                 print(f"::warning title=Repository skipped::{message}")
+            elif line.startswith("PRIVATE: "):
+                warning = re.search(r"; (\d+) warnings(?:;|$)", line)
+                if warning:
+                    print(f"::warning title=Private repositories skipped::{warning[1]} private repositories require attention")
 
     if args.report:
         args.report.write_text(report)
