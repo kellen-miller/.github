@@ -23,6 +23,7 @@ jobs:
           {
             "rulesets": [
               "rulesets/**",
+              ".github/ruleset-requirements.json",
               "scripts/**",
               "tests/**",
               ".github/workflows/**",
