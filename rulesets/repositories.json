@@ -3,9 +3,10 @@
   "repositories": {
     ".github": {
       "checks": [
-        "renovate / Renovate Config Validator",
-        "workflows / lint",
-        "rulesets"
+        "Renovate / Config validation",
+        "GitHub Actions / Workflow validation",
+        "rulesets",
+        "Code duplication (CPD)"
       ]
     },
     "alloy": {
@@ -16,8 +17,9 @@
     "aoc": {
       "checks": [
         "go / Go Test",
-        "renovate / Renovate Config Validator",
-        "workflows / lint"
+        "Renovate / Config validation",
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     },
     "autolab": {
@@ -33,8 +35,9 @@
         "portable (macos-15)",
         "portable (ubuntu-24.04)",
         "quality",
-        "renovate / Renovate Config Validator",
-        "workflows / lint"
+        "Renovate / Config validation",
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     },
     "chief": {
@@ -43,8 +46,9 @@
         "Format",
         "Lint",
         "Test",
-        "renovate / Renovate Config Validator",
-        "workflows / lint"
+        "Renovate / Config validation",
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     },
     "ci": {
@@ -64,17 +68,19 @@
         "Go (ubuntu-latest) / Go Test",
         "Go (windows-latest) / Go Test",
         "VS Code TypeScript integration",
-        "renovate / Renovate Config Validator",
-        "workflows / lint"
+        "Renovate / Config validation",
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     },
     "dotfiles": {
       "checks": [
-        "renovate / Renovate Config Validator",
+        "Renovate / Config validation",
         "shell",
         "tests",
-        "workflows / lint",
-        "yaml"
+        "GitHub Actions / Workflow validation",
+        "yaml",
+        "Code duplication (CPD)"
       ]
     },
     "FollowMeBot": {
@@ -88,13 +94,14 @@
         "Build (macos-latest)",
         "Build (ubuntu-latest)",
         "Conventional pull request title",
-        "GitHub Actions lint / lint",
+        "GitHub Actions / Workflow validation",
         "Go lint",
         "Go vulnerability check",
         "Release configuration",
         "Test (macos-latest) / Go Test",
         "Test (ubuntu-latest) / Go Test",
-        "renovate / Renovate Config Validator"
+        "Renovate / Config validation",
+        "Code duplication (CPD)"
       ]
     },
     "glove80-zmk-config": {
@@ -117,11 +124,12 @@
         "node-red",
         "powershell",
         "python",
-        "renovate / Renovate Config Validator",
+        "Renovate / Config validation",
         "runners",
         "tempo",
         "terraform",
-        "workflows / lint"
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     },
     "KartTimer": {
@@ -131,7 +139,8 @@
       "checks": [
         "build-and-test / Node Test",
         "lint / lint",
-        "workflow-lint / lint"
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     },
     "not-leader-for-partition-example": {
@@ -190,15 +199,17 @@
     "rx7": {
       "checks": [
         "hardware",
-        "renovate / Renovate Config Validator",
-        "workflows / lint"
+        "Renovate / Config validation",
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     },
     "skills": {
       "checks": [
-        "renovate / Renovate Config Validator",
+        "Renovate / Config validation",
         "test",
-        "workflows / lint"
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     },
     "sqlc-gen-python": {
@@ -235,10 +246,11 @@
         "browsers (firefox)",
         "browsers (webkit)",
         "checks",
-        "renovate / Renovate Config Validator",
+        "Renovate / Config validation",
         "smoke",
         "verify",
-        "workflows / lint"
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     }
   }
