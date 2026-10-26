@@ -1,0 +1,7 @@
+{
+  "checks": [
+    "renovate / Renovate Config Validator",
+    "workflows / lint",
+    "rulesets"
+  ]
+}
