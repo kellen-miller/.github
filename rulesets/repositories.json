@@ -224,8 +224,9 @@
         "Rust Tests (Linux)",
         "Rust Tests (macOS)",
         "YAML lint",
-        "renovate / Renovate Config Validator",
-        "workflows / lint"
+        "Renovate / Config validation",
+        "GitHub Actions / Workflow validation",
+        "Code duplication (CPD)"
       ]
     },
     "venae-machinae": {
