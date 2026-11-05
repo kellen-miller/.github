@@ -2,7 +2,7 @@
   "checks": [
     "Renovate / Config validation",
     "GitHub Actions / Workflow validation",
-    "Rulesets / Configuration validation and Python tests",
-    "Code duplication / JSCPD scan"
+    "Configuration validation and Python tests",
+    "JSCPD scan"
   ]
 }
