@@ -1,8 +1,8 @@
 {
   "checks": [
-    "Renovate / Config validation",
-    "GitHub Actions / Workflow validation",
-    "rulesets",
-    "Code duplication (CPD)"
+    "renovate-config.json / Config validation",
+    ".github/workflows / Workflow validation",
+    "Configuration validation and Python tests",
+    "JSCPD scan"
   ]
 }

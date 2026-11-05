@@ -1,0 +1,14 @@
+name: Renovate
+'on':
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ 'renovate-validation' }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  renovate-validation:
+    name: renovate-config.json
+    uses: kellen-miller/ci/.github/workflows/renovate-config-validator.yaml@c188397b9147dbf21030cf2f3e4fc41bff37358b
+    with:
+      config-file: renovate-config.json

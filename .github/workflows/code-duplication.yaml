@@ -1,0 +1,17 @@
+name: Code duplication
+'on':
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ 'code-duplication' }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  duplication-analysis:
+    name: JSCPD scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: kellen-miller/ci/.github/actions/code-duplication@eb1a4f5900aaa6468cffb67513da61078265ba26
