@@ -2,7 +2,7 @@
   "checks": [
     "Renovate / Config validation",
     "GitHub Actions / Workflow validation",
-    "rulesets",
-    "Code duplication (CPD)"
+    "Rulesets / Configuration validation and Python tests",
+    "Code duplication / Source analysis"
   ]
 }
