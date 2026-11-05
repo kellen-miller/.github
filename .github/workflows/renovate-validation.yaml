@@ -4,7 +4,7 @@ name: Renovate
 permissions:
   contents: read
 concurrency:
-  group: ${{ 'CI' }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ 'renovate-validation' }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   renovate-validation:

@@ -4,7 +4,7 @@ name: Code duplication
 permissions:
   contents: read
 concurrency:
-  group: ${{ 'CI' }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ 'code-duplication' }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
   duplication-analysis:
