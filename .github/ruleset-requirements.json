@@ -3,6 +3,6 @@
     "Renovate / Config validation",
     "GitHub Actions / Workflow validation",
     "Rulesets / Configuration validation and Python tests",
-    "Code duplication / Source analysis"
+    "Code duplication / JSCPD scan"
   ]
 }
