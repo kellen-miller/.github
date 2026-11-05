@@ -53,4 +53,4 @@ jobs:
             args+=(--apply)
           fi
           python scripts/reconcile-rulesets.py "${args[@]}"
-    name: Rulesets / Preview or apply configuration
+    name: Preview or apply configuration

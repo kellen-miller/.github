@@ -32,7 +32,7 @@ jobs:
                 "uv.lock"
               ]
             }
-    name: Rulesets source changes
+    name: Ruleset inputs
   ruleset-checks:
     runs-on: ubuntu-latest
     steps:

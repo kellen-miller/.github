@@ -1,7 +1,7 @@
 {
   "checks": [
-    "Renovate / Config validation",
-    "GitHub Actions / Workflow validation",
+    "renovate-config.json / Config validation",
+    "Workflow files / Workflow validation",
     "Configuration validation and Python tests",
     "JSCPD scan"
   ]
